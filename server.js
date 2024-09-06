@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const { exec } = require('child_process');
+const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -7,17 +9,48 @@ const port = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
+// Create downloads directory if it doesn't exist
+const downloadsDir = path.join(__dirname, 'downloads');
+if (!fs.existsSync(downloadsDir)) {
+    fs.mkdirSync(downloadsDir);
+}
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Placeholder for the download route (we'll add in Phase 3)
+// Download route
 app.post('/download', (req, res) => {
     const videoUrl = req.body.url;
-    // Logic for downloading will go here (Phase 3)
-    res.json({ downloadUrl: '/path-to-download-file' });
+    
+    if (!videoUrl) {
+        return res.status(400).json({ error: 'No URL provided' });
+    }
+
+    const videoId = new Date().getTime(); // Unique ID for the video file
+    const videoPath = path.join(downloadsDir, `${videoId}.mp4`);
+
+    // Download the video using yt-dlp
+    exec(`yt-dlp -f mp4 -o "${videoPath}" "${videoUrl}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error('Error downloading video:', error);
+            return res.status(500).json({ error: 'Error downloading video' });
+        }
+
+        // Check if the video exists after download
+        if (!fs.existsSync(videoPath)) {
+            return res.status(500).json({ error: 'Failed to download video' });
+        }
+
+        // Send the video back to the client
+        res.json({ downloadUrl: `/downloads/${videoId}.mp4` });
+    });
 });
 
+// Serve downloaded files
+app.use('/downloads', express.static(downloadsDir));
+
+// Start the server
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
