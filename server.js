@@ -54,3 +54,37 @@ app.use('/downloads', express.static(downloadsDir));
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
 });
+
+app.post('/download', async (req, res) => {
+    const videoUrl = req.body.url;
+    
+    if (!videoUrl) {
+        return res.status(400).json({ error: 'No URL provided' });
+    }
+
+    try {
+        const videoId = new Date().getTime(); // Unique ID for the video file
+        const videoPath = path.join(__dirname, 'downloads', `${videoId}.mp4`);
+
+        // Download the video using yt-dlp
+        await ytdlp(videoUrl, {
+            output: videoPath,
+            format: 'mp4',
+        });
+
+        // Check if the video exists after download
+        if (!fs.existsSync(videoPath)) {
+            return res.status(500).json({ error: 'Failed to download video' });
+        }
+
+        // Send the video back to the client
+        res.json({ downloadUrl: `/downloads/${videoId}.mp4` });
+
+    } catch (error) {
+        if (error.message.includes('URL')) {
+            return res.status(400).json({ error: 'Invalid YouTube URL' });
+        }
+        console.error('Error downloading video:', error);
+        res.status(500).json({ error: 'Server Error: Failed to download video' });
+    }
+});
