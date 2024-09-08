@@ -16,6 +16,38 @@
         </form>
         <div id="response-message"></div>
     </div>
+    
+    <div id="status"></div>
+    
+    <script>
+    document.getElementById('download-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const videoUrl = document.getElementById('videoUrl').value;
+        const statusDiv = document.getElementById('status');
+        
+        statusDiv.innerHTML = 'Downloading... Please wait.';
+        
+        try {
+            const response = await fetch('/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: videoUrl }),
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok) {
+                statusDiv.innerHTML = `Download Ready: <a href="${result.downloadUrl}">Download Video</a>`;
+            } else {
+                statusDiv.innerHTML = `Error: ${result.error}`;
+            }
+        } catch (error) {
+            statusDiv.innerHTML = 'Server error. Please try again later.';
+        }
+    });
+    </script>    
     <script src="script.js"></script>
 </body>
 </html>
